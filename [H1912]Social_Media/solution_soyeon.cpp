@@ -9,25 +9,25 @@ struct POST {
 	int like;
 	int timestamp;
 }Post[MAX_P];
-POST P_BEAN;
+//POST P_BEAN;
 int postcnt;
 
-struct LIST
-{
-	LIST* prev;
-	POST* p;
-	LIST* next;
-};
+//struct LIST
+//{
+//	LIST* prev;
+//	POST* p;
+//	LIST* next;
+//};
 
 void init(int N)
 {
-	for (register int i = 0; i < 1001; i++) {
-		for (register int j = 0; j < 1001; j++) {
+	for (register int i = 0; i <= N; i++) {
+		for (register int j = 0; j <= N; j++) {
 			frd[i][j] = 0;
 		}
 		frd[i][i] = 1;
 	}
-	P_BEAN.like = 0;
+	//P_BEAN.like = 0;
 	postcnt = 0;
 }
 
@@ -39,7 +39,8 @@ void follow(int uID1, int uID2, int timestamp)
 void makePost(int uID, int pID, int timestamp)
 {
 	POST* newpost = &Post[pID];
-	*newpost = P_BEAN;
+	//*newpost = P_BEAN;
+	newpost->like = 0;
 	newpost->uid = uID;
 	newpost->pid = pID;
 	newpost->timestamp = timestamp;
