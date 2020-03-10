@@ -141,7 +141,7 @@ inline void dfs(int r, int c, int n, char pictures[MAXN][MAX_PIECE_SIZE][MAX_PIE
         }
 
         // 동서 남북 4 모서리에 대해서 모두 색종이를 붙였다면 더이상 검사할 필요 없음
-        if (flag == 4) break;
+        if (cnt == 4) break;
     }
 }
  
