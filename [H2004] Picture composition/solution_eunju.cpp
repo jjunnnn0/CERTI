@@ -1,6 +1,7 @@
 #define MAX_PICTURE_SIZE 1000
 #define MAX_PIECE_SIZE 100
 #define MAXN 1500
+#define HASH_MAX 600001
 
 extern bool setPicture(int id, int x, int y);
 
@@ -27,7 +28,6 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 	
 	int curind = 0;
 
-	
 	for (register int n = 0; n < N; n++)
 	{
 		for (register int i = 0; i < M - 1; i++)
@@ -36,30 +36,30 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 			sum[n][1][i] = 0;
 			for (register int j = 0; j <= M - 1; j++)
 			{
-				sum[n][0][i] += pictures[n][i][j]+ pictures[n][i+1][j];
-				sum[n][1][i] += pictures[n][j][i] + pictures[n][j][i+1];
+				sum[n][1][i] = ((sum[n][1][i] << 5) + pictures[n][j][i] + pictures[n][j][i+1])% HASH_MAX; 
+				sum[n][0][i] = ((sum[n][0][i] << 5) + pictures[n][i][j] + pictures[n][i + 1][j]) % HASH_MAX;
+				/*sum[n][1][i] += pictures[n][j][i] + pictures[n][j][i + 1];
+				sum[n][0][i] += pictures[n][i][j] + pictures[n][i + 1][j];*/
 			}
+				
 		}
 	}
 
 	while (cnt < N)
 	{
-		int flag = 0;
 		for (register int n = 1; n < N; n++)
 		{
-			if (flag == 1)
-				break;
-
 			if (check[n] == tc)
 				continue;
 
+			int flag = 0;
 
 			for (register int i = 0; i < M - 1; i++)
 			{
 				if (flag == 1)
 					break;
 
-				if (sum[use[curind]][0][i] == sum[n][0][0] && flag == 0)
+				if (sum[use[curind]][0][i] == sum[n][0][0])
 				{
 					for (register int j = 0; j < M; j++)
 					{
@@ -69,10 +69,9 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 							{
 								position[n].posy = position[use[curind]].posy + i;
 								position[n].posx = position[use[curind]].posx;
-								setPicture(n, position[n].posx, position[n].posy);
+								setPicture(n, position[n].posx, position[n].posy);	//
 								check[n] = tc;
 								use[cnt] = n;
-								curind = cnt;
 								cnt++;
 								flag = 1;
 							}
@@ -82,7 +81,8 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 					}
 				}
 
-				if (sum[use[curind]][0][i] == sum[n][0][M-2] && flag == 0)
+
+				if (flag == 0 && sum[use[curind]][0][i] == sum[n][0][M-2])
 				{
 					for (register int j = 0; j < M; j++)
 					{
@@ -95,7 +95,6 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 								setPicture(n, position[n].posx, position[n].posy);
 								check[n] = tc;
 								use[cnt] = n;
-								curind = cnt;
 								cnt++;
 								flag = 1;
 							}
@@ -105,7 +104,7 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 					}
 				}
 
-				if (sum[use[curind]][1][i] == sum[n][1][0] && flag == 0)
+				if (flag == 0 && sum[use[curind]][1][i] == sum[n][1][0])
 				{
 					for (register int j = 0; j < M; j++)
 					{
@@ -118,7 +117,6 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 								setPicture(n, position[n].posx, position[n].posy);
 								check[n] = tc;
 								use[cnt] = n;
-								curind = cnt;
 								cnt++;
 								flag = 1;
 							}
@@ -128,7 +126,7 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 					}
 				}
 
-				if (sum[use[curind]][1][i] == sum[n][1][M-2] && flag == 0)
+				if (flag == 0 && sum[use[curind]][1][i] == sum[n][1][M-2])
 				{
 					for (register int j = 0; j < M; j++)
 					{
@@ -141,7 +139,6 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 								setPicture(n, position[n].posx, position[n].posy);
 								check[n] = tc;
 								use[cnt] = n;
-								curind = cnt;
 								cnt++;
 								flag = 1;
 							}
@@ -150,13 +147,8 @@ void mergePictures(int N, int M, int K, char pictures[MAXN][MAX_PIECE_SIZE][MAX_
 							break;
 					}
 				}
-	
 			}
-
 		}
-
-		if (flag != 1 && curind > 0) // && curind > 0
-			curind--;
-		
+		curind++;
 	}
 }
