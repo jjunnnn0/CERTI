@@ -1,165 +1,194 @@
-#define MAX_USER 1000
-#define MAX_GROUP 100
-#define MAX_EVENT_NAME 200
-#define MAX_TABLE (MAX_EVENT_NAME*2 + 7)
-#define MAX_EVENT 50000
-#define MAX_NODE (MAX_EVENT*2)
+#define nullptr 0
  
-#define ull unsigned long long
+#define S_GRP 100
+#define S_USR 1000
+#define S_LET 27    // null : 0, a ~ z : 1 ~ 26
+#define S_CAL 50000
  
-typedef struct event {
-    int u_id;
-    int g_id;
-    ull e_name;
-}Event;
+int usr_count[S_USR];
  
-typedef struct node {
+struct User {
+    int mName;
+    User* next;
+    User* prev;
+}user_pool[S_CAL];
+int usr_alloc;
  
-    struct event* e;
-    struct node* next;
-    struct node* child;
+struct Schedule {
+    char mName[15];
+    int mCnt;
+    User mUsers;
+    User* mMaster;
+    Schedule* next;
+    Schedule* prev;
+}sch_pool[S_CAL];
+int sch_alloc;
  
-}Node;
+Schedule sch_table[S_GRP][S_LET][S_LET][S_LET];
  
-Event eventPool[MAX_EVENT];
-int eventPoolCnt;
+void mstrcpy(char dst[], const char src[]) {
+    register int c = 0;
+    while ((dst[c] = src[c]) != 0) ++c;
+}
  
-Node nodePool[MAX_NODE];
-int nodePoolCnt;
- 
-Node eventOfUser[MAX_USER];
-int cntEventOfUser[MAX_USER];
-Node groupEvent[MAX_GROUP][MAX_TABLE];
- 
-inline ull str_to_ull(char* str) {
- 
-    ull ret = 0;
- 
-    for (register int i = 0; str[i]; ++i) {
-        ret += (ret << 5) + str[i] - 'a' + 1;
-    }
- 
-    return ret;
+int mstrcmp(const char str1[], const char str2[]) {
+    register int c = 0;
+    while (str1[c] != 0 && str1[c] == str2[c]) ++c;
+    return str1[c] - str2[c];
 }
  
 void init()
 {
-    eventPoolCnt = 0;
-    nodePoolCnt = 0;
+    sch_alloc = 0;
+    usr_alloc = 0;
  
-    for (register int i = 0; i < MAX_USER; ++i) {
-        eventOfUser[i].next = 0;
-        cntEventOfUser[i] = 0;
+    for (register int i = 0; i < S_USR; i++) {
+        usr_count[i] = 0;
     }
-    for (register int i = 0; i < MAX_GROUP; ++i) {
-        for (register int j = 0; j < MAX_TABLE; ++j) {
-            groupEvent[i][j].next = 0;
+ 
+    for (register int i = 0; i < S_GRP; i++) {
+        for (register int l = 0; l < S_LET; l++) {
+            for (register int m = 0; m < S_LET; m++) {
+                for (register int n = 0; n < S_LET; n++) {
+                    sch_table[i][l][m][n].next = nullptr;
+                }
+            }
         }
     }
- 
 }
  
 void addEvent(int uid, char ename[], int groupid)
 {
-    ull enameUll = str_to_ull(ename);
+    register int l = ename[0] - 'a' + 1;
+    register int m = 0, n = 0;
  
-    Event* newEvent = &eventPool[eventPoolCnt++];
-    newEvent->u_id = uid;
-    newEvent->e_name = enameUll;
-    newEvent->g_id = groupid;
+    bool find = false;
  
-    Node* newNode = &nodePool[nodePoolCnt++];
-    newNode->e = newEvent;
-    newNode->child = 0;
-    newNode->next = eventOfUser[uid].next;
+    if (ename[1] != '\0') {
+        m = ename[1] - 'a' + 1;
+        if (ename[2] != '\0') {
+            n = ename[2] - 'a' + 1;
+        }
+    }
  
-    eventOfUser[uid].next = newNode;
-    cntEventOfUser[uid]++;
+    register Schedule *sch_cur = &sch_table[groupid][l][m][n];
+    while (sch_cur->next != nullptr) {
+        sch_cur = sch_cur->next;
  
-    newNode = &nodePool[nodePoolCnt++];
-    newNode->e = newEvent;
-    newNode->child = 0;
-    newNode->next = 0;
- 
-    register Node* curr;
-    int hash = enameUll % MAX_TABLE;
- 
-    for (curr = groupEvent[groupid][hash].next; curr; curr = curr->next) {
- 
-        if (curr->e->e_name == enameUll) {
-            newNode->child = curr->child;
-            curr->child = newNode;
+        if (mstrcmp(sch_cur->mName, ename) == 0) {
+            find = true;
             break;
         }
- 
     }
  
-    if (!curr) { 
-        newNode->next = groupEvent[groupid][hash].next;
-        groupEvent[groupid][hash].next = newNode;
-    }
+    User *usr_new = &user_pool[usr_alloc++];
+    usr_new->mName = uid;
+    usr_count[uid]++;
  
+    register User *usr_cur;
+ 
+    if (find) {
+        usr_cur = &(sch_cur->mUsers);
+ 
+        sch_cur->mCnt++;
+ 
+        usr_new->next = usr_cur->next;
+        usr_new->prev = usr_cur;
+        usr_cur->next->prev = usr_new;
+        usr_cur->next = usr_new;
+    }
+    else {
+        Schedule *sch_new = &sch_pool[sch_alloc++];
+        usr_cur = &(sch_new->mUsers);
+ 
+        mstrcpy(sch_new->mName, ename);
+        sch_new->mCnt = 1;
+        sch_new->mMaster = usr_new;
+ 
+        sch_cur->next = sch_new;
+        sch_new->prev = sch_cur;
+        sch_new->next = nullptr;
+ 
+        usr_new->prev = usr_cur;
+        usr_new->next = nullptr;
+        usr_cur->next = usr_new;
+    }
 }
  
 int deleteEvent(int uid, char ename[])
 {
-    int ret = 0;
+    register int l = ename[0] - 'a' + 1;
+    register int m = 0, n = 0;
  
-    ull enameUll = str_to_ull(ename);
-    int g_id;
+    register bool find;
  
-    register Node* curr;
-    register Node* prev;
- 
-    prev = &eventOfUser[uid];
-    for (curr = eventOfUser[uid].next; curr; curr = curr->next) {
-        if (curr->e->e_name == enameUll) {
-            g_id = curr->e->g_id;
-            prev->next = curr->next;
-            break;
+    if (ename[1] != '\0') {
+        m = ename[1] - 'a' + 1;
+        if (ename[2] != '\0') {
+            n = ename[2] - 'a' + 1;
         }
-        prev = curr;
     }
  
-    int hash = enameUll % MAX_TABLE;
+    register Schedule *sch_cur;
+    register User *usr_cur;
  
-    prev = &groupEvent[g_id][hash];
-    for (curr = groupEvent[g_id][hash].next; curr; curr = curr->next) {
+    register int ret = 0;
  
-        if (curr->e->e_name == enameUll) {
+    for (register int i = 0; i < S_GRP; i++) {
+        sch_cur = &sch_table[i][l][m][n];
  
-            if (curr->e->u_id == uid) {
+        find = false;
+        while (sch_cur->next != nullptr) {
+            sch_cur = sch_cur->next;
  
-                prev->next = curr->next;
-     
-                for (register Node* node = curr; node; node = node->child) {
-                    cntEventOfUser[node->e->u_id]--;
-                    ret++;
-                }
+            if (mstrcmp(sch_cur->mName, ename) == 0) {
+                find = true;
                 break;
             }
- 
-            else {
- 
-                prev = curr;
-                for (curr = prev->child; curr; curr = curr->child) {
- 
-                    if (curr->e->u_id == uid) {
-                        prev->child = curr->child;
-                        ret = 1;
-                        cntEventOfUser[uid]--;
-                        break;
-                    }
- 
-                    prev = curr;
-                }
- 
-            }
- 
-            break;
         }
  
-        prev = curr;
+        if (find) {
+            usr_cur = &(sch_cur->mUsers);
+            if (sch_cur->mMaster->mName == uid) {
+//              usr_cur = &(sch_cur->mUsers);
+                while (usr_cur->next != nullptr) {
+                    usr_cur = usr_cur->next;
+                    usr_count[usr_cur->mName]--;
+                     
+                    ret++;
+                }
+ 
+//              ret += sch_cur->mCnt;
+                sch_cur->prev->next = sch_cur->next;
+                if (sch_cur->next != nullptr) {
+                    sch_cur->next->prev = sch_cur->prev;
+                }
+            }
+            else {
+//              usr_cur = &(sch_cur->mUsers);
+ 
+                find = false;
+                while (usr_cur->next != nullptr) {
+                    usr_cur = usr_cur->next;
+ 
+                    if (usr_cur->mName == uid) {
+                        find = true;
+                        break;
+                    }
+                }
+ 
+                if (find) {
+                    ret++;
+                    usr_count[uid]--;
+                    sch_cur->mCnt--;
+ 
+                    usr_cur->prev->next = usr_cur->next;
+                    if (usr_cur->next != nullptr) {
+                        usr_cur->next->prev = usr_cur->prev;
+                    }
+                }
+            }
+        }
     }
  
     return ret;
@@ -167,68 +196,118 @@ int deleteEvent(int uid, char ename[])
  
 int changeEvent(int uid, char ename[], char cname[])
 {
+    register int l = ename[0] - 'a' + 1;
+    register int m = 0, n = 0;
  
-    ull e_name = str_to_ull(ename);
-    ull c_name = str_to_ull(cname);
+    register bool find;
  
-    int g_id;
- 
-    register Node* curr;
-    register Node* prev;
- 
- 
-    for (curr = eventOfUser[uid].next; curr; curr = curr->next) {
-        if (curr->e->e_name == e_name) {
-            g_id = curr->e->g_id;
-            break;
+    if (ename[1] != '\0') {
+        m = ename[1] - 'a' + 1;
+        if (ename[2] != '\0') {
+            n = ename[2] - 'a' + 1;
         }
     }
  
-    int hash = e_name % MAX_TABLE;
-    int hash_c = c_name % MAX_TABLE;
+    register Schedule *sch_cur;
+    register User *usr_cur;
  
-    int ret = 0;
+    register int ret = 0;
  
-    prev = &groupEvent[g_id][hash];
-    for (curr = groupEvent[g_id][hash].next; curr; curr = curr->next) {
-        if (curr->e->e_name == e_name) {
-            if (curr->e->u_id == uid) { 
+    for (register int i = 0; i < S_GRP; i++) {
+        sch_cur = &sch_table[i][l][m][n];
  
-                prev->next = curr->next;
+        find = false;
+        while (sch_cur->next != nullptr) {
+            sch_cur = sch_cur->next;
  
-                for (register Node* node = curr; node; node = node->child) {
-                    node->e->e_name = c_name;
-                    ret++;
-                }
- 
-                curr->next = groupEvent[g_id][hash_c].next;
-                groupEvent[g_id][hash_c].next = curr;
- 
+            if (mstrcmp(sch_cur->mName, ename) == 0) {
+                find = true;
                 break;
             }
+        }
  
+        if (find) {
+            if (sch_cur->mMaster->mName == uid) {
+                mstrcpy(sch_cur->mName, cname);
+ 
+                sch_cur->prev->next = sch_cur->next;
+                if (sch_cur->next != nullptr) {
+                    sch_cur->next->prev = sch_cur->prev;
+                }
+ 
+                register int a = cname[0] - 'a' + 1;
+                register int b = 0, c = 0;
+ 
+                if (cname[1] != '\0') {
+                    b = cname[1] - 'a' + 1;
+                    if (cname[2] != '\0') {
+                        c = cname[2] - 'a' + 1;
+                    }
+                }
+ 
+                register Schedule *sch_tmp = &sch_table[i][a][b][c];
+ 
+                sch_cur->next = sch_tmp->next;
+                sch_cur->prev = sch_tmp;
+                if (sch_tmp->next != nullptr) {
+                    sch_tmp->next->prev = sch_cur;
+                }
+                sch_tmp->next = sch_cur;
+ 
+                ret += sch_cur->mCnt;
+            }
             else {
-                prev = curr;
-                for (curr = prev->child; curr; curr = curr->child) {
-                    if (curr->e->u_id == uid) {
+                usr_cur = &(sch_cur->mUsers);
  
-                        prev->child = curr->child;
+                find = false;
+                while (usr_cur->next != nullptr) {
+                    usr_cur = usr_cur->next;
  
-                        curr->e->e_name = c_name;
-                        ret = 1;
- 
-                        curr->next = groupEvent[g_id][hash_c].next;
-                        groupEvent[g_id][hash_c].next = curr;
- 
+                    if (usr_cur->mName == uid) {
+                        find = true;
                         break;
                     }
-                    prev = curr;
+                }
+ 
+                if (find) {
+                    usr_cur->prev->next = usr_cur->next;
+                    if (usr_cur->next != nullptr) {
+                        usr_cur->next->prev = usr_cur->prev;
+                    }
+ 
+                    sch_cur->mCnt--;
+ 
+                    Schedule *sch_new = &sch_pool[sch_alloc++];
+                    mstrcpy(sch_new->mName, cname);
+                    sch_new->mCnt = 1;
+                    sch_new->mMaster = usr_cur;
+ 
+                    usr_cur->next = nullptr;
+                    usr_cur->prev = &(sch_new->mUsers);
+                    sch_new->mUsers.next = usr_cur;
+ 
+                    register int a = cname[0] - 'a' + 1;
+                    register int b = 0, c = 0;
+ 
+                    if (cname[1] != '\0') {
+                        b = cname[1] - 'a' + 1;
+                        if (cname[2] != '\0') {
+                            c = cname[2] - 'a' + 1;
+                        }
+                    }
+ 
+                    register Schedule *sch_tmp = &sch_table[i][a][b][c];
+                    sch_new->next = sch_tmp->next;
+                    sch_new->prev = sch_tmp;
+                    if (sch_tmp->next != nullptr) {
+                        sch_tmp->next->prev = sch_new;
+                    }
+                    sch_tmp->next = sch_new;
+ 
+                    ret++;
                 }
             }
- 
-            break;
         }
-        prev = curr;
     }
  
     return ret;
@@ -236,5 +315,5 @@ int changeEvent(int uid, char ename[], char cname[])
  
 int getCount(int uid)
 {
-    return cntEventOfUser[uid];
+    return usr_count[uid];
 }
